@@ -1,8 +1,14 @@
+import os
 import sys
 import socket
 import thread
-import select
 import signal
+
+# For handling multiple connections
+import select
+
+# For caching
+import hashlib
 
 __version__ = '0.0.0'
 BUFLEN = 8192
@@ -69,33 +75,55 @@ class ConnectionHandler:
         count = 0
         while True:
             count += 1
+
+            # For non-blocking
             (recv, _, error) = select.select(socs, [], socs, 3)
+
             if error:
                 break
             if recv:
                 for in_ in recv:
                     data = in_.recv(BUFLEN)
+
                     if in_ is self.client:
                         out = self.target
                     else:
                         out = self.client
                     if data:
+                        # Cache check
+                        data = self._check_cache(data)
                         out.send(data)
                         count = 0
             if count == max_timeout:
                 break
+
+    def _check_cache(self, data):
+        m = hashlib.md5()
+        m.update(data)
+        cache_filename = m.hexdigest() + '.cached'
+
+        if os.path.exists(cache_filename):
+            print 'Cache hit'
+            return ''.join(open(cache_filename).readlines())
+        else:
+            print 'Cache miss'
+            open(cache_filename, 'wb').writelines(data)
+            return data
 
 def start_server(host='localhost', port=8000, timeout=60,
                   handler=ConnectionHandler):
     if len(sys.argv) > 0:
         port = int(sys.argv[1])
 
+    # TCP connection
     soc_type = socket.AF_INET
     soc = socket.socket(soc_type)
     soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     soc.bind((host, port))
+
     print "Serving on %s:%d." % (host, port)
     soc.listen(0)
+
     while True:
         thread.start_new_thread(handler, soc.accept() + (timeout,))
         signal.signal(signal.SIGINT, signal_handler)
