@@ -2,6 +2,7 @@ import sys
 import socket
 import thread
 import select
+import signal
 
 __version__ = '0.0.0'
 BUFLEN = 8192
@@ -84,18 +85,23 @@ class ConnectionHandler:
             if count == max_timeout:
                 break
 
-def start_server(host='localhost', port=8080, timeout=60,
+def start_server(host='localhost', port=8000, timeout=60,
                   handler=ConnectionHandler):
     if len(sys.argv) > 0:
         port = int(sys.argv[1])
 
     soc_type = socket.AF_INET
     soc = socket.socket(soc_type)
+    soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     soc.bind((host, port))
     print "Serving on %s:%d." % (host, port)
     soc.listen(0)
     while True:
         thread.start_new_thread(handler, soc.accept() + (timeout,))
+        signal.signal(signal.SIGINT, signal_handler)
+
+def signal_handler(signal, frame):
+    sys.exit(0)
 
 if __name__ == '__main__':
     start_server()
