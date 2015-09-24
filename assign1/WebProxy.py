@@ -59,15 +59,34 @@ class ConnectionHandler:
         self._read_write()
 
     def _connect_target(self, host):
+        # To handle different ports
         i = host.find(':')
         if i != -1:
             port = int(host[i+1:])
             host = host[:i]
         else:
-            port = 80
-        (soc_family, _, _, _, address) = socket.getaddrinfo(host, port)[0]
-        self.target = socket.socket(soc_family)
-        self.target.connect(address)
+            port = 80 # Default port 80
+
+        try:
+            (soc_family, _, _, _, address) = socket.getaddrinfo(host, port)[0]
+            self.target = socket.socket(soc_family)
+        except Exception:
+            # Handles 502
+            self._return_502()
+            return
+
+        try:
+            self.target.connect(address)
+        except Exception:
+            # Handles 404
+            self._return_404()
+            return
+
+    def _return_502(self):
+        self.client.send('502 Bad Gateway.')
+
+    def _return_404(self):
+        self.client.send('404 not found.')
 
     def _read_write(self):
         max_timeout = self.timeout / 3
