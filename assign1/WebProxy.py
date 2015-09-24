@@ -72,12 +72,19 @@ class ConnectionHandler:
     def _read_write(self):
         max_timeout = self.timeout / 3
         socs = [self.client, self.target]
+
+        # For basic caching
+        buff = ''
+        m = hashlib.md5()
+        m.update(self.path)
+        cache_filename = m.hexdigest() + '.cached'
+
         count = 0
         while True:
             count += 1
 
             # For non-blocking
-            (recv, _, error) = select.select(socs, [], socs, 3)
+            (recv, _, error) = select.select(socs, [], [], 3)
 
             if error:
                 break
@@ -90,25 +97,21 @@ class ConnectionHandler:
                     else:
                         out = self.client
                     if data:
-                        # Cache check
-                        data = self._check_cache(data)
+                        if os.path.exists(cache_filename):
+                            print 'Cache hit'
+                            data = ''.join(open(cache_filename).readlines())
+                            out.send(data)
+                            return
+                        print 'Cache miss'
+                        buff += data
                         out.send(data)
                         count = 0
+
             if count == max_timeout:
                 break
 
-    def _check_cache(self, data):
-        m = hashlib.md5()
-        m.update(data)
-        cache_filename = m.hexdigest() + '.cached'
-
-        if os.path.exists(cache_filename):
-            print 'Cache hit'
-            return ''.join(open(cache_filename).readlines())
-        else:
-            print 'Cache miss'
-            open(cache_filename, 'wb').writelines(data)
-            return data
+        open(cache_filename, 'wb').writelines(buff)
+        buff = ''
 
 def start_server(host='localhost', port=8000, timeout=60,
                   handler=ConnectionHandler):
