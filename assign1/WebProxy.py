@@ -17,6 +17,7 @@ HTTPVER = 'HTTP/1.0'
 
 class ConnectionHandler:
     def __init__(self, connection, address, timeout):
+        self.connected = False
         self.client = connection
         self.client_buffer = ''
         self.timeout = timeout
@@ -27,7 +28,8 @@ class ConnectionHandler:
                              'DELETE', 'TRACE'):
             self.method_others()
         self.client.close()
-        self.target.close()
+        if self.connected:
+            self.target.close()
 
     def get_base_header(self):
         while True:
@@ -52,11 +54,12 @@ class ConnectionHandler:
         i = self.path.find('/')
         host = self.path[:i]
         path = self.path[i:]
-        self._connect_target(host)
-        self.target.send('%s %s %s\n' % (self.method, path, self.protocol) +
-                         self.client_buffer)
-        self.client_buffer = ''
-        self._read_write()
+        self.connected = self._connect_target(host)
+        if self.connected:
+            self.target.send('%s %s %s\n' % (self.method, path, self.protocol) +
+                            self.client_buffer)
+            self.client_buffer = ''
+            self._read_write()
 
     def _connect_target(self, host):
         # To handle different ports
@@ -73,20 +76,26 @@ class ConnectionHandler:
         except Exception:
             # Handles 502
             self._return_502()
-            return
+            return False
 
         try:
             self.target.connect(address)
         except Exception:
             # Handles 404
             self._return_404()
-            return
+            return False
+
+        return True
 
     def _return_502(self):
-        self.client.send('502 Bad Gateway.')
+        self.client.send('HTTP/1.0 502 Bad Gateway\r\n')
+        self.client.send('Content Type: text/html\r\n\r\n')
+        self.client.send('Error 502: Bad Gateway')
 
     def _return_404(self):
-        self.client.send('404 not found.')
+        self.client.send('HTTP/1.0 404 Not Found\r\n')
+        self.client.send('Content Type: text/html\r\n\r\n')
+        self.client.send('Error 404: Not Found')
 
     def _read_write(self):
         max_timeout = self.timeout / 3
