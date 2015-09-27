@@ -64,9 +64,14 @@ class ConnectionHandler:
         path = self.path[i:]
         self.connected = self._connect_target(host)
         if self.connected:
-            # Conditional Get for Advanced Caching
-            conditional = 'If-Modified-Since: ' + self.generate_timestamp() + '\r\n'
-            self.client_buffer = conditional + self.client_buffer
+            m = hashlib.md5()
+            m.update(self.path)
+            cache_filename = m.hexdigest() + '.cached'
+
+            if os.path.exists(cache_filename):
+                # Conditional Get for Advanced Caching
+                conditional = 'If-Modified-Since: ' + self.generate_timestamp() + '\r\n'
+                self.client_buffer = conditional + self.client_buffer
 
             self.target.send('%s %s %s\r\n' % (self.method, path, self.protocol) +
                             self.client_buffer)
