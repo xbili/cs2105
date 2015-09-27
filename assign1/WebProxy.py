@@ -10,6 +10,11 @@ import select
 # For caching
 import hashlib
 
+# For Date & Time format
+from wsgiref.handlers import format_date_time
+from datetime import datetime
+from time import mktime
+
 __version__ = '0.0.0'
 BUFLEN = 8192
 VERSION = 'Python Proxy/' + __version__
@@ -56,7 +61,11 @@ class ConnectionHandler:
         path = self.path[i:]
         self.connected = self._connect_target(host)
         if self.connected:
-            self.target.send('%s %s %s\n' % (self.method, path, self.protocol) +
+            # Conditional Get for Advanced Caching
+            conditional = 'If-Modified-Since: ' + self.generate_timestamp() + '\r\n'
+            self.client_buffer = conditional + self.client_buffer
+
+            self.target.send('%s %s %s\r\n' % (self.method, path, self.protocol) +
                             self.client_buffer)
             self.client_buffer = ''
             self._read_write()
@@ -101,7 +110,7 @@ class ConnectionHandler:
         max_timeout = self.timeout / 3
         socs = [self.client, self.target]
 
-        # For basic caching
+        # For caching
         buff = ''
         m = hashlib.md5()
         m.update(self.path)
@@ -125,7 +134,7 @@ class ConnectionHandler:
                     else:
                         out = self.client
                     if data:
-                        if os.path.exists(cache_filename):
+                        if os.path.exists(cache_filename) and self.check_conditional(data):
                             print 'Cache hit'
                             data = ''.join(open(cache_filename).readlines())
                             out.send(data)
@@ -140,6 +149,18 @@ class ConnectionHandler:
 
         open(cache_filename, 'wb').writelines(buff)
         buff = ''
+
+    def generate_timestamp(self):
+        now = datetime.now()
+        stamp = mktime(now.timetuple())
+        return format_date_time(stamp)
+
+    def check_conditional(self, data):
+        data = data.split('\r\n')[0]
+        print data
+        if '304' in data:
+            return True
+        return False
 
 def start_server(host='localhost', port=8000, timeout=60,
                   handler=ConnectionHandler):
