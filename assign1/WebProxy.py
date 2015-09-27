@@ -15,6 +15,9 @@ from wsgiref.handlers import format_date_time
 from datetime import datetime
 from time import mktime
 
+# For case insensitive replace
+import re
+
 __version__ = '0.0.0'
 BUFLEN = 8192
 VERSION = 'Python Proxy/' + __version__
@@ -137,10 +140,12 @@ class ConnectionHandler:
                         if os.path.exists(cache_filename) and self.check_conditional(data):
                             print 'Cache hit'
                             data = ''.join(open(cache_filename).readlines())
+                            data = self.censor_text(data)
                             out.send(data)
                             return
                         print 'Cache miss'
                         buff += data
+                        data = self.censor_text(data)
                         out.send(data)
                         count = 0
 
@@ -161,6 +166,15 @@ class ConnectionHandler:
         if '304' in data:
             return True
         return False
+
+    def censor_text(self, data):
+        new_data = ''
+        censored_txt = open('censor.txt', 'r').readlines()
+        for line in censored_txt:
+            print 'line:', line
+            data = re.sub(line + '*', '---', data, flags=re.I)
+            print 'data:', data
+        return data
 
 def start_server(host='localhost', port=8000, timeout=60,
                   handler=ConnectionHandler):
