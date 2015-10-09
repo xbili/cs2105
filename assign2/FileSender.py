@@ -1,5 +1,4 @@
 import os, sys
-import io
 import socket
 
 server_name = 'localhost'
