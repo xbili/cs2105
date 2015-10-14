@@ -3,7 +3,7 @@ import socket
 import pickle
 
 server_name = 'localhost'
-server_port = 9001
+server_port = int(sys.argv[1])
 
 # States of Receiver
 WAIT_CALL_0 = 0
