@@ -5,12 +5,17 @@ import pickle
 server_name = 'localhost'
 server_port = 9001
 
+# States of Receiver
+WAIT_CALL_0 = 0
+WAIT_CALL_1 = 1
+
 class Packet:
     def __init__(self, seqnum, acknum, checksum, payload):
         self.seqnum = seqnum # 0 / 1
         self.acknum = acknum # 0 / 1
         self.checksum = checksum # Binary string
         self.payload = payload
+        self.state = WAIT_CALL_0
 
 class Receiver:
     def __init__(self):

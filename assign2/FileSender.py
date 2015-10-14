@@ -6,6 +6,12 @@ import time
 server_name = 'localhost'
 server_port = 9000
 
+# States of Sender
+WAIT_CALL_0 = 0
+WAIT_ACK_0 = 1
+WAIT_CALL_1 = 2
+WAIT_ACK_0 = 3
+
 class Message:
     def __init__(self, data):
         # Data is an array of 20 char
@@ -23,6 +29,7 @@ class Sender:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.connect((server_name, server_port))
+        self.state = WAIT_CALL_0
 
     def _output(self, msg):
         self.sock.send(msg)
