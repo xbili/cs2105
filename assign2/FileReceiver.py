@@ -33,8 +33,9 @@ class Receiver:
 def main():
     rcv = Receiver()
 
-    # Writes into the new file
-    f = open('large1.mp4', 'w')
+    # Receives the first packet which is the file destination
+    dest, client_address = rcv._recv(2048)
+    f = open(dest, 'w')
 
     count = 1
 
