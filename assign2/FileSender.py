@@ -13,11 +13,6 @@ WAIT_ACK_0 = 1
 WAIT_CALL_1 = 2
 WAIT_ACK_0 = 3
 
-class Message:
-    def __init__(self, data):
-        # Data is an array of 20 char
-        self.data = data
-
 class Packet:
     def __init__(self, seqnum, acknum, payload):
         self.seqnum = seqnum # 0 / 1
