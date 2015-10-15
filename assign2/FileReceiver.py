@@ -59,8 +59,8 @@ def create_packet(seq_num, ack_num, payload):
 def main():
     rcv = Receiver()
     dest_pkt, client_address = rcv._recv(4096)
-    dest = pickle.loads(dest_pkt).payload
-    f = open(dest, 'wb')
+    dest = pickle.loads(dest_pkt)
+    f = open(dest.payload, 'wb')
 
     count = 1
     while True:
