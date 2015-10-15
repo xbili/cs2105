@@ -11,7 +11,7 @@ server_port = 9000
 WAIT_CALL_0 = 0
 WAIT_ACK_0 = 1
 WAIT_CALL_1 = 2
-WAIT_ACK_0 = 3
+WAIT_ACK_1 = 3
 
 class Packet:
     def __init__(self, seqnum, acknum, payload):
@@ -60,10 +60,11 @@ def create_packet(seq_num, ack_num, payload):
     return pkt
 
 def is_corrupt(pkt):
+    pkt = pickle.loads(pkt)
     chksum = pkt._retrieve_chksum()
     print 'Expected checksum:', chksum
-    print 'Actual checksum:', verify_chksum(pickle.dumps(pkt))
-    return chksum != verify_chksum(pickle.dumps(pkt))
+    print 'Actual checksum:', calc_chksum(pickle.dumps(pkt))
+    return chksum != calc_chksum(pickle.dumps(pkt))
 
 def is_ack(pkt, num):
     pkt = pickle.loads(pkt)
@@ -72,18 +73,17 @@ def is_ack(pkt, num):
     return payload == 'ack' and acknum == num
 
 def get_ack_num(pkt):
-    pkt = pickle.loads(pkt)
-    return pkt.ack
+    return pkt.acknum
 
-def wait_ack_handler(sender, acknum):
+def wait_ack_handler(sender, acknum, payload):
     seq_num = acknum
     while True:
         pkt_string, client_address = sender._recv(4096)
+
         if is_ack(pkt_string, toggle_bit(acknum)) or is_corrupt(pkt_string):
-            pkt = create_packet(seq_num, ack_num, payload)
+            pkt = create_packet(seq_num, acknum, payload)
             sender._output(pickle.dumps(pkt))
-        elif not is_corrupt and is_ack(pkt_string, acknum):
-            payload = data.read(32)
+        elif not is_corrupt(pkt_string) and is_ack(pkt_string, acknum):
             if acknum == 0:
                 sender.state = WAIT_CALL_1
             else:
@@ -104,22 +104,34 @@ def main():
     data = open(sys.argv[1], 'r')
     payload = data.read(32)
 
+    count = 1
     while payload:
         if sender.state == WAIT_CALL_0:
             seq_num = 0
             pkt = create_packet(seq_num, ack_num, payload)
             sender._output(pickle.dumps(pkt))
+
+            count+=1
+            print 'Sent packet', count
+
             sender.state = WAIT_ACK_0
         elif sender.state == WAIT_ACK_0:
-            wait_ack_handler(sender, 0)
+            payload = data.read(32)
+            wait_ack_handler(sender, 0, payload)
+            print 'ack 0 received'
         elif sender.state == WAIT_CALL_1:
-            seq_num, = 1
+            seq_num = 1
             pkt = create_packet(seq_num, ack_num, payload)
             sender._output(pickle.dumps(pkt))
+
+            count+=1
+            print 'Sent packet', count
+
             sender.state = WAIT_ACK_1
         elif sender.state == WAIT_ACK_1:
-            wait_ack_handler(sender, 1)
-        payload = data.read(32)
+            payload = data.read(32)
+            wait_ack_handler(sender, 1, payload)
+            print 'ack 1 received'
         print sender.state
 
     sender._output('done')

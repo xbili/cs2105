@@ -26,6 +26,7 @@ class Packet:
 
 class Receiver:
     def __init__(self):
+        self.state = WAIT_CALL_0
         self.rcv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rcv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.rcv_sock.bind(('', server_port))
@@ -44,10 +45,15 @@ def verify_chksum(pkt):
     return (binascii.crc32(pkt) & 0xffffffff)
 
 def is_corrupt(pkt):
+    pkt = pickle.loads(pkt)
     chksum = pkt._retrieve_chksum()
     print 'Expected checksum:', chksum
     print 'Actual checksum:', verify_chksum(pickle.dumps(pkt))
     return chksum != verify_chksum(pickle.dumps(pkt))
+
+def has_seq(pkt, seqnum):
+    pkt = pickle.loads(pkt)
+    return pkt.seqnum == seqnum
 
 def create_packet(seq_num, ack_num, payload):
     pkt = Packet(seq_num, ack_num, payload)
@@ -68,21 +74,40 @@ def main():
 
         if pkt_string == 'done':
             f.close()
-        else:
-            try:
+            break
+
+        elif rcv.state == WAIT_CALL_0:
+            if is_corrupt(pkt_string) or has_seq(pkt_string, 1):
+                ack1 = create_packet(0, 1, 'ack')
+                rcv._output(pickle.dumps(ack1), client_address)
+
+                print 'corrupt, ack1 sent'
+            elif not is_corrupt(pkt_string) and has_seq(pkt_string, 0):
                 pkt = pickle.loads(pkt_string)
-                if is_corrupt(pkt):
-                    print 'Corrupted'
-                    nak = create_packet(0, 0, 'ack')
-                    rcv._output(pickle.dumps(nak), client_address)
-                else:
-                    print 'Writing message', count
-                    f.write(pkt.payload)
-                    count+=1
-            except:
-                print 'Entire Packet Corrupted'
-                nak = create_packet(0, 0, '')
-                rcv._output(pickle.dumps(nak), client_address)
+                f.write(pkt.payload)
+                count+=1
+                print 'Writing message', count
+
+                ack0 = create_packet(0, 0, 'ack')
+                rcv._output(pickle.dumps(ack0), client_address)
+                print 'ack0 sent'
+                rcv.state = WAIT_CALL_1
+        elif rcv.state == WAIT_CALL_1:
+            if is_corrupt(pkt_string) or has_seq(pkt_string, 0):
+                ack0 = create_packet(0, 0, 'ack')
+                rcv._output(pickle.dumps(ack0), client_address)
+
+                print 'corrupt, ack0 sent'
+            elif not is_corrupt(pkt_string) and has_seq(pkt_string, 1):
+                pkt = pickle.loads(pkt_string)
+                f.write(pkt.payload)
+                count+=1
+                print 'Writing message', count
+
+                ack1 = create_packet(0, 1, 'ack')
+                rcv._output(pickle.dumps(ack1), client_address)
+                print 'ack1 sent'
+                rcv.state = WAIT_CALL_0
     rcv._close()
 
 if __name__ == '__main__':
