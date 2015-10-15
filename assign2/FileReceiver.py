@@ -43,6 +43,12 @@ class Receiver:
 def verify_chksum(pkt):
     return (binascii.crc32(pkt) & 0xffffffff)
 
+def is_corrupt(pkt):
+    chksum = pkt._retrieve_chksum()
+    print 'Expected checksum:', chksum
+    print 'Actual checksum:', verify_chksum(pickle.dumps(pkt))
+    return chksum != verify_chksum(pickle.dumps(pkt))
+
 def main():
     rcv = Receiver()
     dest_pkt, client_address = rcv._recv(4096)
@@ -58,20 +64,14 @@ def main():
         else:
             try:
                 pkt = pickle.loads(pkt_string)
-                chksum = pkt._retrieve_chksum()
-
-                if chksum != verify_chksum(pickle.dumps(pkt)):
-                    print 'Expected checksum:', chksum
-                    print 'Actual checksum:', verify_chksum(pickle.dumps(pkt))
+                if is_corrupt(pkt):
                     print 'Corrupted'
                 else:
                     print 'Writing message', count
                     f.write(pkt.payload)
                     count+=1
             except:
-                print 'Expected checksum:', chksum
-                print 'Actual checksum:', verify_chksum(pickle.dumps(pkt))
-                print 'Corrupted'
+                print 'Entire Packet Corrupted'
     rcv._close()
 
 if __name__ == '__main__':
