@@ -39,6 +39,9 @@ class Sender:
         self.sock.connect((server_name, server_port))
         self.state = WAIT_CALL_0
 
+    def _recv(self, size):
+        return self.sock.recvfrom(size)
+
     def _output(self, msg):
         self.sock.send(msg)
 
@@ -61,6 +64,37 @@ def create_packet(seq_num, ack_num, payload):
     pkt._set_chksum(chksum)
     return pkt
 
+def is_corrupt(pkt):
+    chksum = pkt._retrieve_chksum()
+    print 'Expected checksum:', chksum
+    print 'Actual checksum:', verify_chksum(pickle.dumps(pkt))
+    return chksum != verify_chksum(pickle.dumps(pkt))
+
+def is_ack(pkt, num):
+    pkt = pickle.loads(pkt)
+    acknum = get_ack_num(pkt)
+    payload = pkt.payload
+    return payload == 'ack' and acknum == num
+
+def get_ack_num(pkt):
+    pkt = pickle.loads(pkt)
+    return pkt.ack
+
+def wait_ack_handler(sender, acknum):
+    seq_num = acknum
+    while True:
+        pkt_string, client_address = sender._recv(4096)
+        if is_ack(pkt_string, toggle_bit(acknum)) or is_corrupt(pkt_string):
+            pkt = create_packet(seq_num, ack_num, payload)
+            sender._output(pickle.dumps(pkt))
+        elif not is_corrupt and is_ack(pkt_string, acknum):
+            payload = data.read(32)
+            if acknum == 0:
+                sender.state = WAIT_CALL_1
+            else:
+                sender.state = WAIT_CALL_0
+            return
+
 def main():
     start = time.time()
     sender = Sender()
@@ -78,22 +112,22 @@ def main():
     payload = data.read(32)
 
     while payload:
-        seq_num = toggle_bit(seq_num)
-        ack_num = toggle_bit(ack_num)
-
-        print 'Sending'
-        print '---'
-        print 'Seq_num:', seq_num
-        print 'Ack_num:', ack_num
-        print '---'
-
-        pkt = create_packet(seq_num, ack_num, payload)
-        sender._output(pickle.dumps(pkt))
-
-        print 'Payload size: ', sys.getsizeof(payload)
-        print 'Total string size: ', sys.getsizeof(pickle.dumps(pkt))
-
+        if sender.state == WAIT_CALL_0:
+            seq_num = 0
+            pkt = create_packet(seq_num, ack_num, payload)
+            sender._output(pickle.dumps(pkt))
+            sender.state = WAIT_ACK_0
+        elif sender.state == WAIT_ACK_0:
+            wait_ack_handler(sender, 0)
+        elif sender.state == WAIT_CALL_1:
+            seq_num, = 1
+            pkt = create_packet(seq_num, ack_num, payload)
+            sender._output(pickle.dumps(pkt))
+            sender.state = WAIT_ACK_1
+        elif sender.state == WAIT_ACK_1:
+            wait_ack_handler(sender, 1)
         payload = data.read(32)
+        print sender.state
 
     sender._output('done')
     sender._close()
