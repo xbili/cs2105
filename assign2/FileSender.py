@@ -65,13 +65,14 @@ def main():
     start = time.time()
     sender = Sender()
 
+    seq_num = 0
+    ack_num = 0
+
     # TODO: This needs to be properly handled if message is corrupt
     # Destination to save the file to
     dest = sys.argv[2]
-    sender._output(dest)
-
-    seq_num = 0
-    ack_num = 0
+    dest_pkt = create_packet(seq_num, ack_num, dest)
+    sender._output(pickle.dumps(dest_pkt))
 
     data = open(sys.argv[1], 'r')
     payload = data.read(32)

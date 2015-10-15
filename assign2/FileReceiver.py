@@ -45,7 +45,8 @@ def verify_chksum(pkt):
 
 def main():
     rcv = Receiver()
-    dest, client_address = rcv._recv(4096)
+    dest_pkt, client_address = rcv._recv(4096)
+    dest = pickle.loads(dest_pkt).payload
     f = open(dest, 'wb')
 
     count = 1
