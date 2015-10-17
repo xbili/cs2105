@@ -60,11 +60,14 @@ def create_packet(seq_num, ack_num, payload):
     return pkt
 
 def is_corrupt(pkt):
-    pkt = pickle.loads(pkt)
-    chksum = pkt._retrieve_chksum()
-    print 'Expected checksum:', chksum
-    print 'Actual checksum:', calc_chksum(pickle.dumps(pkt))
-    return chksum != calc_chksum(pickle.dumps(pkt))
+    try:
+        pkt = pickle.loads(pkt)
+        chksum = pkt._retrieve_chksum()
+        print 'Expected checksum:', chksum
+        print 'Actual checksum:', calc_chksum(pickle.dumps(pkt))
+        return chksum != calc_chksum(pickle.dumps(pkt))
+    except:
+        return True
 
 def is_ack(pkt, num):
     pkt = pickle.loads(pkt)
@@ -80,7 +83,7 @@ def wait_ack_handler(sender, acknum, payload):
     while True:
         pkt_string, client_address = sender._recv(4096)
 
-        if is_ack(pkt_string, toggle_bit(acknum)) or is_corrupt(pkt_string):
+        if is_corrupt(pkt_string) or is_ack(pkt_string, toggle_bit(acknum)):
             pkt = create_packet(seq_num, acknum, payload)
             sender._output(pickle.dumps(pkt))
         elif not is_corrupt(pkt_string) and is_ack(pkt_string, acknum):
@@ -116,8 +119,8 @@ def main():
 
             sender.state = WAIT_ACK_0
         elif sender.state == WAIT_ACK_0:
-            payload = data.read(32)
             wait_ack_handler(sender, 0, payload)
+            payload = data.read(32)
             print 'ack 0 received'
         elif sender.state == WAIT_CALL_1:
             seq_num = 1
@@ -129,8 +132,8 @@ def main():
 
             sender.state = WAIT_ACK_1
         elif sender.state == WAIT_ACK_1:
-            payload = data.read(32)
             wait_ack_handler(sender, 1, payload)
+            payload = data.read(32)
             print 'ack 1 received'
         print sender.state
 

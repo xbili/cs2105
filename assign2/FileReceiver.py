@@ -45,11 +45,14 @@ def verify_chksum(pkt):
     return (binascii.crc32(pkt) & 0xffffffff)
 
 def is_corrupt(pkt):
-    pkt = pickle.loads(pkt)
-    chksum = pkt._retrieve_chksum()
-    print 'Expected checksum:', chksum
-    print 'Actual checksum:', verify_chksum(pickle.dumps(pkt))
-    return chksum != verify_chksum(pickle.dumps(pkt))
+    try:
+        pkt = pickle.loads(pkt)
+        chksum = pkt._retrieve_chksum()
+        print 'Expected checksum:', chksum
+        print 'Actual checksum:', verify_chksum(pickle.dumps(pkt))
+        return chksum != verify_chksum(pickle.dumps(pkt))
+    except:
+        return True
 
 def has_seq(pkt, seqnum):
     pkt = pickle.loads(pkt)
@@ -66,13 +69,15 @@ def main():
     rcv = Receiver()
     dest_pkt, client_address = rcv._recv(4096)
     dest = pickle.loads(dest_pkt)
-    f = open(dest.payload, 'wb')
+    f = open(dest.payload, 'w')
 
     count = 1
     while True:
         pkt_string, client_address = rcv._recv(4096)
+        print 'pkt_string', pkt_string
 
         if pkt_string == 'done':
+            print 'DONE'
             f.close()
             break
 
