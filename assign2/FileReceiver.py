@@ -90,7 +90,7 @@ def main():
     try:
         while True:
             pkt_string, client_address = rcv._recv(4096)
-            rcv._set_timeout(2)
+            rcv._set_timeout(1)
             # print 'pkt_string', pkt_string
 
             if rcv.state == WAIT_CALL_0:
