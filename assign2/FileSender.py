@@ -100,15 +100,12 @@ def main():
     seq_num = 0
     ack_num = 0
 
-    dest = sys.argv[2]
-    dest_pkt = create_packet(seq_num, ack_num, dest)
-    sender._output(pickle.dumps(dest_pkt))
-
     data = open(sys.argv[1], 'r')
-    payload = data.read(32)
+    payload = 'dest: ' + sys.argv[2]
+    next_packet = True
 
     count = 1
-    while payload:
+    while next_packet:
         if sender.state == WAIT_CALL_0:
             seq_num = 0
             pkt = create_packet(seq_num, ack_num, payload)
@@ -136,6 +133,9 @@ def main():
             payload = data.read(32)
             print 'ack 1 received'
         print sender.state
+
+        if payload == '':
+            next_packet = False
 
     sender._close()
 

@@ -68,12 +68,20 @@ def create_packet(seq_num, ack_num, payload):
     pkt._set_chksum(chksum)
     return pkt
 
+def is_dest_pkt(pkt):
+    pkt = pickle.loads(pkt)
+    if pkt.payload[:4] == 'dest':
+        return True
+    else:
+        return False
+
+def get_dest(pkt):
+    pkt = pickle.loads(pkt)
+    return pkt.payload[6:]
+
 def main():
     rcv = Receiver()
     rcv._set_timeout(2)
-    dest_pkt, client_address = rcv._recv(4096)
-    dest = pickle.loads(dest_pkt)
-    f = open(dest.payload, 'w')
 
     count = 1
     try:
@@ -88,10 +96,14 @@ def main():
 
                     print 'corrupt, ack1 sent'
                 elif not is_corrupt(pkt_string) and has_seq(pkt_string, 0):
-                    pkt = pickle.loads(pkt_string)
-                    f.write(pkt.payload)
-                    count+=1
-                    print 'Writing message', count
+                    if is_dest_pkt(pkt_string):
+                        f = open(get_dest(pkt_string), 'w')
+                        print 'Dest packet received'
+                    else:
+                        pkt = pickle.loads(pkt_string)
+                        f.write(pkt.payload)
+                        count+=1
+                        print 'Writing message', count
 
                     ack0 = create_packet(0, 0, 'ack')
                     rcv._output(pickle.dumps(ack0), client_address)
@@ -104,10 +116,14 @@ def main():
 
                     print 'corrupt, ack0 sent'
                 elif not is_corrupt(pkt_string) and has_seq(pkt_string, 1):
-                    pkt = pickle.loads(pkt_string)
-                    f.write(pkt.payload)
-                    count+=1
-                    print 'Writing message', count
+                    if is_dest_pkt(pkt_string):
+                        f = open(get_dest(pkt_string), 'w')
+                        print 'Dest packet received'
+                    else:
+                        pkt = pickle.loads(pkt_string)
+                        f.write(pkt.payload)
+                        count+=1
+                        print 'Writing message', count
 
                     ack1 = create_packet(0, 1, 'ack')
                     rcv._output(pickle.dumps(ack1), client_address)
