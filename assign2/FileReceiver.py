@@ -1,6 +1,6 @@
 import os, sys
 import socket
-import pickle
+import cPickle as pickle
 import binascii
 import zlib
 
