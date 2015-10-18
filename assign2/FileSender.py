@@ -58,7 +58,7 @@ def toggle_bit(bit):
 def create_packet(seq_num, ack_num, payload):
     pkt = Packet(seq_num, ack_num, payload)
     chksum = calc_chksum(pickle.dumps(pkt))
-    print 'Checksum size: ', sys.getsizeof(chksum)
+    # print 'Checksum size: ', sys.getsizeof(chksum)
     pkt._set_chksum(chksum)
     return pkt
 
@@ -66,8 +66,8 @@ def is_corrupt(pkt):
     try:
         pkt = pickle.loads(pkt)
         chksum = pkt._retrieve_chksum()
-        print 'Expected checksum:', chksum
-        print 'Actual checksum:', calc_chksum(pickle.dumps(pkt))
+        # print 'Expected checksum:', chksum
+        # print 'Actual checksum:', calc_chksum(pickle.dumps(pkt))
         return chksum != calc_chksum(pickle.dumps(pkt))
     except:
         return True
@@ -85,7 +85,7 @@ def wait_ack_handler(sender, acknum, payload):
     seq_num = acknum
     while True:
         try:
-            sender._set_timeout(0.1)
+            sender._set_timeout(0.001)
             pkt_string, client_address = sender._recv(4096)
 
             if is_corrupt(pkt_string) or is_ack(pkt_string, toggle_bit(acknum)):
@@ -98,7 +98,7 @@ def wait_ack_handler(sender, acknum, payload):
                     sender.state = WAIT_CALL_0
                 return
         except socket.timeout:
-            print 'Timed out'
+            # print 'Timed out'
             pkt = create_packet(seq_num, acknum, payload)
             sender._output(pickle.dumps(pkt))
 
@@ -123,13 +123,13 @@ def main():
             sender._output(pickle.dumps(pkt))
 
             count+=1
-            print 'Sent packet', count
+            # print 'Sent packet', count
 
             sender.state = WAIT_ACK_0
         elif sender.state == WAIT_ACK_0:
             wait_ack_handler(sender, 0, payload)
             payload = data.read(32)
-            print 'ack 0 received'
+            # print 'ack 0 received'
         elif sender.state == WAIT_CALL_1:
             sender._set_timeout(None)
             seq_num = 1
@@ -137,21 +137,21 @@ def main():
             sender._output(pickle.dumps(pkt))
 
             count+=1
-            print 'Sent packet', count
+            # print 'Sent packet', count
 
             sender.state = WAIT_ACK_1
         elif sender.state == WAIT_ACK_1:
             wait_ack_handler(sender, 1, payload)
             payload = data.read(32)
-            print 'ack 1 received'
-        print sender.state
+            # print 'ack 1 received'
+        # print sender.state
 
         if payload == '':
             next_packet = False
 
     sender._close()
 
-    print 'Time taken: ', time.time() - start
+    # print 'Time taken: ', time.time() - start
 
 if __name__ == '__main__':
     main()
