@@ -2,6 +2,7 @@ import os, sys
 import socket
 import pickle
 import binascii
+import zlib
 
 server_name = 'localhost'
 server_port = int(sys.argv[1])
@@ -49,6 +50,7 @@ def verify_chksum(pkt):
 
 def is_corrupt(pkt):
     try:
+        pkt = zlib.decompress(pkt)
         pkt = pickle.loads(pkt)
         chksum = pkt._retrieve_chksum()
         # print 'Expected checksum:', chksum
@@ -58,6 +60,7 @@ def is_corrupt(pkt):
         return True
 
 def has_seq(pkt, seqnum):
+    pkt = zlib.decompress(pkt)
     pkt = pickle.loads(pkt)
     return pkt.seqnum == seqnum
 
@@ -69,6 +72,7 @@ def create_packet(seq_num, ack_num, payload):
     return pkt
 
 def is_dest_pkt(pkt):
+    pkt = zlib.decompress(pkt)
     pkt = pickle.loads(pkt)
     if pkt.payload[:4] == 'dest':
         return True
@@ -76,6 +80,7 @@ def is_dest_pkt(pkt):
         return False
 
 def get_dest(pkt):
+    pkt = zlib.decompress(pkt)
     pkt = pickle.loads(pkt)
     return pkt.payload[6:]
 
@@ -105,7 +110,9 @@ def main():
                         f = open(get_dest(pkt_string), 'w')
                         # print 'Dest packet received'
                     else:
-                        pkt = pickle.loads(pkt_string)
+                        # print sys.getsizeof(pkt_string)
+                        pkt = zlib.decompress(pkt_string)
+                        pkt = pickle.loads(pkt)
                         f.write(pkt.payload)
                         count+=1
                         # print 'Writing message', count
@@ -130,7 +137,9 @@ def main():
                         f = open(get_dest(pkt_string), 'w')
                         # print 'Dest packet received'
                     else:
-                        pkt = pickle.loads(pkt_string)
+                        # print sys.getsizeof(pkt_string)
+                        pkt = zlib.decompress(pkt_string)
+                        pkt = pickle.loads(pkt)
                         f.write(pkt.payload)
                         count+=1
                         # print 'Writing message', count

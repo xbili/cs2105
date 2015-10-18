@@ -3,9 +3,13 @@ import socket
 import pickle
 import time
 import binascii
+import zlib
 
 server_name = 'localhost'
 server_port = 9000
+
+TIMEOUT = 0.001
+PAYLOAD_SIZE = 512
 
 # States of Sender
 WAIT_CALL_0 = 0
@@ -35,7 +39,7 @@ class Sender:
         self.state = WAIT_CALL_0
 
     def _set_timeout(self, timeout):
-        self.sock.settimeout(timeout)
+        self.sock.settimeout(TIMEOUT)
 
     def _recv(self, size):
         return self.sock.recvfrom(size)
@@ -85,12 +89,13 @@ def wait_ack_handler(sender, acknum, payload):
     seq_num = acknum
     while True:
         try:
-            sender._set_timeout(0.001)
+            sender._set_timeout(0.1)
             pkt_string, client_address = sender._recv(4096)
 
             if is_corrupt(pkt_string) or is_ack(pkt_string, toggle_bit(acknum)):
                 pkt = create_packet(seq_num, acknum, payload)
-                sender._output(pickle.dumps(pkt))
+                compressed_pkt = zlib.compress(pickle.dumps(pkt))
+                sender._output(compressed_pkt)
             elif not is_corrupt(pkt_string) and is_ack(pkt_string, acknum):
                 if acknum == 0:
                     sender.state = WAIT_CALL_1
@@ -100,7 +105,9 @@ def wait_ack_handler(sender, acknum, payload):
         except socket.timeout:
             # print 'Timed out'
             pkt = create_packet(seq_num, acknum, payload)
-            sender._output(pickle.dumps(pkt))
+            compressed_pkt = zlib.compress(pickle.dumps(pkt))
+            sender._output(compressed_pkt)
+
 
 def main():
     start = time.time()
@@ -120,7 +127,8 @@ def main():
                 sender._set_timeout(None)
             seq_num = 0
             pkt = create_packet(seq_num, ack_num, payload)
-            sender._output(pickle.dumps(pkt))
+            compressed_pkt = zlib.compress(pickle.dumps(pkt))
+            sender._output(compressed_pkt)
 
             count+=1
             # print 'Sent packet', count
@@ -128,13 +136,14 @@ def main():
             sender.state = WAIT_ACK_0
         elif sender.state == WAIT_ACK_0:
             wait_ack_handler(sender, 0, payload)
-            payload = data.read(32)
+            payload = data.read(PAYLOAD_SIZE)
             # print 'ack 0 received'
         elif sender.state == WAIT_CALL_1:
             sender._set_timeout(None)
             seq_num = 1
             pkt = create_packet(seq_num, ack_num, payload)
-            sender._output(pickle.dumps(pkt))
+            compressed_pkt = zlib.compress(pickle.dumps(pkt))
+            sender._output(compressed_pkt)
 
             count+=1
             # print 'Sent packet', count
@@ -142,7 +151,7 @@ def main():
             sender.state = WAIT_ACK_1
         elif sender.state == WAIT_ACK_1:
             wait_ack_handler(sender, 1, payload)
-            payload = data.read(32)
+            payload = data.read(PAYLOAD_SIZE)
             # print 'ack 1 received'
         # print sender.state
 
@@ -151,7 +160,7 @@ def main():
 
     sender._close()
 
-    # print 'Time taken: ', time.time() - start
+    print 'Time taken: ', time.time() - start
 
 if __name__ == '__main__':
     main()
