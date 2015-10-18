@@ -137,7 +137,6 @@ def main():
             print 'ack 1 received'
         print sender.state
 
-    sender._output('done')
     sender._close()
 
     print 'Time taken: ', time.time() - start
