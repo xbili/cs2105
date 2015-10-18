@@ -4,7 +4,6 @@ import pickle
 import binascii
 import zlib
 
-server_name = 'localhost'
 server_port = int(sys.argv[1])
 
 # States of Receiver

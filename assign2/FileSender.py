@@ -5,8 +5,8 @@ import time
 import binascii
 import zlib
 
-server_name = 'localhost'
-server_port = 9000
+server_name = sys.argv[1]
+server_port = int(sys.argv[2])
 
 TIMEOUT = 0.001
 PAYLOAD_SIZE = 512
@@ -116,8 +116,8 @@ def main():
     seq_num = 0
     ack_num = 0
 
-    data = open(sys.argv[1], 'r')
-    payload = 'dest: ' + sys.argv[2]
+    data = open(sys.argv[3], 'r')
+    payload = 'dest: ' + sys.argv[4]
     next_packet = True
 
     count = 1
