@@ -81,16 +81,21 @@ def get_dest(pkt):
 
 def main():
     rcv = Receiver()
-    rcv._set_timeout(2)
 
     count = 1
     try:
         while True:
             pkt_string, client_address = rcv._recv(4096)
+            rcv._set_timeout(2)
             print 'pkt_string', pkt_string
 
             if rcv.state == WAIT_CALL_0:
                 if is_corrupt(pkt_string) or has_seq(pkt_string, 1):
+                    ack1 = create_packet(0, 1, 'ack')
+                    rcv._output(pickle.dumps(ack1), client_address)
+
+                    print 'corrupt, ack1 sent'
+                elif not is_corrupt(pkt_string) and has_seq(pkt_string, 1):
                     ack1 = create_packet(0, 1, 'ack')
                     rcv._output(pickle.dumps(ack1), client_address)
 
@@ -111,6 +116,11 @@ def main():
                     rcv.state = WAIT_CALL_1
             elif rcv.state == WAIT_CALL_1:
                 if is_corrupt(pkt_string) or has_seq(pkt_string, 0):
+                    ack0 = create_packet(0, 0, 'ack')
+                    rcv._output(pickle.dumps(ack0), client_address)
+
+                    print 'corrupt, ack0 sent'
+                elif not is_corrupt(pkt_string) and has_seq(pkt_string, 0):
                     ack0 = create_packet(0, 0, 'ack')
                     rcv._output(pickle.dumps(ack0), client_address)
 

@@ -34,6 +34,9 @@ class Sender:
         self.sock.connect((server_name, server_port))
         self.state = WAIT_CALL_0
 
+    def _set_timeout(self, timeout):
+        self.sock.settimeout(timeout)
+
     def _recv(self, size):
         return self.sock.recvfrom(size)
 
@@ -81,17 +84,23 @@ def get_ack_num(pkt):
 def wait_ack_handler(sender, acknum, payload):
     seq_num = acknum
     while True:
-        pkt_string, client_address = sender._recv(4096)
+        try:
+            sender._set_timeout(0.1)
+            pkt_string, client_address = sender._recv(4096)
 
-        if is_corrupt(pkt_string) or is_ack(pkt_string, toggle_bit(acknum)):
+            if is_corrupt(pkt_string) or is_ack(pkt_string, toggle_bit(acknum)):
+                pkt = create_packet(seq_num, acknum, payload)
+                sender._output(pickle.dumps(pkt))
+            elif not is_corrupt(pkt_string) and is_ack(pkt_string, acknum):
+                if acknum == 0:
+                    sender.state = WAIT_CALL_1
+                else:
+                    sender.state = WAIT_CALL_0
+                return
+        except socket.timeout:
+            print 'Timed out'
             pkt = create_packet(seq_num, acknum, payload)
             sender._output(pickle.dumps(pkt))
-        elif not is_corrupt(pkt_string) and is_ack(pkt_string, acknum):
-            if acknum == 0:
-                sender.state = WAIT_CALL_1
-            else:
-                sender.state = WAIT_CALL_0
-            return
 
 def main():
     start = time.time()
@@ -107,6 +116,8 @@ def main():
     count = 1
     while next_packet:
         if sender.state == WAIT_CALL_0:
+            if count > 1:
+                sender._set_timeout(None)
             seq_num = 0
             pkt = create_packet(seq_num, ack_num, payload)
             sender._output(pickle.dumps(pkt))
@@ -120,6 +131,7 @@ def main():
             payload = data.read(32)
             print 'ack 0 received'
         elif sender.state == WAIT_CALL_1:
+            sender._set_timeout(None)
             seq_num = 1
             pkt = create_packet(seq_num, ack_num, payload)
             sender._output(pickle.dumps(pkt))
