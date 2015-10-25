@@ -39,10 +39,9 @@ def main():
     # because RSA can only encode strings and numbers
     # we only need to encode and send the 32-byte random password
     encrypted_sess_key = encrypt_session_key(sess_key, pub_key)
-    print 'encrypted_key:', encrypted_key
 
     # send the session key
-    send_session_key()
+    send_session_key(encrypted_sess_key)
 
     # receive the messages
     receive_messages()
@@ -61,7 +60,12 @@ def encrypt_session_key(sess_key, pub_key):
     return ciphertext
 
 def send_session_key(encrypted_sess_key):
-    pass
+    pickled = pickle.dumps(encrypted_sess_key)
+    skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    skt.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    skt.connect((ip, int(port)))
+    skt.send(pickled)
+    skt.close()
 
 def receive_messages():
     # because each line is sent by pickling
