@@ -15,7 +15,7 @@ import pickle
 from Crypto.Cipher import AES
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
-from Crypto.Random import random
+from Crypto.Random import Fortuna
 
 from AESCipher import AESCipher
 
@@ -51,8 +51,9 @@ def read_public_key():
     return RSA.importKey(f.read())
 
 def generate_random_key():
-    raw = random.getrandbits(256)
-    return str(raw)
+    generator = Fortuna.FortunaGenerator.AESGenerator()
+    generator.reseed('cs2105')
+    return generator.pseudo_random_data(32)
 
 def encrypt_session_key(sess_key, pub_key):
     cipher = PKCS1_OAEP.new(pub_key)
