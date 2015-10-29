@@ -26,6 +26,10 @@ else:
     name, ip, port = sys.argv
 
 def main():
+    skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    skt.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    skt.connect((ip, int(port)))
+
     # read Bob's public key from file
     # key is stored using RSA.exportKey and must
     # be read with the respective counterpart
@@ -41,10 +45,10 @@ def main():
     encrypted_sess_key = encrypt_session_key(sess_key, pub_key)
 
     # send the session key
-    send_session_key(encrypted_sess_key)
+    send_session_key(skt, encrypted_sess_key)
 
     # receive the messages
-    receive_messages()
+    receive_messages(skt, sess_key)
 
 def read_public_key():
     f = open('bob-python.pub', 'r')
@@ -60,18 +64,28 @@ def encrypt_session_key(sess_key, pub_key):
     ciphertext = cipher.encrypt(sess_key)
     return ciphertext
 
-def send_session_key(encrypted_sess_key):
+def send_session_key(skt, encrypted_sess_key):
     pickled = pickle.dumps(encrypted_sess_key)
-    skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    skt.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    skt.connect((ip, int(port)))
     skt.send(pickled)
-    skt.close()
 
-def receive_messages():
+def receive_messages(skt, sess_key):
     # because each line is sent by pickling
     # it might be better to read from the socket
     # as a stream and let pickle do its job
-    pass
+    msg = open('msgs.txt', 'w')
+    data = skt.recv(1024)
+    count = 1
+    while data:
+        data = pickle.loads(data)
+        cipher = AESCipher(sess_key)
+        decrypted = cipher.decrypt(data)
+        msg.write(decrypted)
+        data = skt.recv(1024) # Fetch next packet
+        count += 1
+
+    print 'received', count
+    # Proper teardown
+    msg.close()
+    skt.close()
 
 main()
