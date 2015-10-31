@@ -76,10 +76,14 @@ def receive_messages(skt, sess_key):
     data = skt.recv(1024)
     count = 1
     while data:
-        data = pickle.loads(data)
-        cipher = AESCipher(sess_key)
-        decrypted = cipher.decrypt(data)
-        msg.write(decrypted)
+        data_arr = split_combined_pickle(data)
+        for item in data_arr:
+            print item
+            if not item is None:
+                item = pickle.loads(item)
+                cipher = AESCipher(sess_key)
+                decrypted = cipher.decrypt(item)
+                msg.write(decrypted)
         data = skt.recv(1024) # Fetch next packet
         count += 1
 
@@ -87,5 +91,12 @@ def receive_messages(skt, sess_key):
     # Proper teardown
     msg.close()
     skt.close()
+
+def split_combined_pickle(data):
+    def append_pic(pic):
+        if not pic == '':
+            return pic + 'p0\n.'
+
+    return map(append_pic, data.split('p0\n.'))
 
 main()
