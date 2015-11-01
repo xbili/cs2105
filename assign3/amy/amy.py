@@ -1,6 +1,6 @@
 import socket
 import sys
-import pickle
+import cPickle as pickle
 from Crypto.Hash import MD5
 from Crypto.Cipher import AES
 from Crypto.Cipher import PKCS1_OAEP
@@ -78,7 +78,6 @@ def receive_messages(skt, sess_key):
     while data:
         data_arr = split_combined_pickle(data)
         for item in data_arr:
-            print item
             if not item is None:
                 item = pickle.loads(item)
                 cipher = AESCipher(sess_key)
