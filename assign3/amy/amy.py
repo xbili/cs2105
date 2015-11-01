@@ -42,12 +42,12 @@ def read_public_key(skt):
     signature = pickle.loads(skt.recv(1024))
 
     # Hash Bryan's public key
-    hashed_bryan_public = MD5.new(bryan_public)
-    print hashed_bryan_public
-    print signature
+    hashed_bryan_public = MD5.new()
+    hashed_bryan_public.update('bryan')
+    hashed_bryan_public.update(bryan_public)
 
     # Loads berisign public key
-    with open("berisign-python.pub", "r") as f:
+    with open('berisign-python.pub', "r") as f:
         berisign_public = RSA.importKey(f.read())
 
     # Checks if the hash matches
