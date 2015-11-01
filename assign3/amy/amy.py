@@ -52,10 +52,11 @@ def read_public_key(skt):
 
     # Checks if the hash matches
     signer = PKCS1_PSS.new(berisign_public)
+    bryan_public = RSA.importKey(bryan_public)
     if not signer.verify(hashed_bryan_public, signature):
         print 'Not a valid public key'
-        pub = False
-    return pub
+        bryan_public = False
+    return bryan_public
 
 def generate_random_key():
     generator = Fortuna.FortunaGenerator.AESGenerator()
